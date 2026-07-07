@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Field Notes — Voice Journal</title>
+<style>
+  :root{
+    --paper: #EAE3D1;
+    --paper-dark: #DED5BE;
+    --ink: #2B2A22;
+    --ink-soft: #6B6653;
+    --moss: #55603F;
+    --moss-dark: #3E4630;
+    --ochre: #A8763A;
+    --record: #A63D2F;
+    --record-dark: #7E2C21;
+    --line: #C7BC9C;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:
+      repeating-linear-gradient(transparent, transparent 27px, var(--line) 28px);
+    color:var(--ink);
+    font-family: "Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    min-height:100vh;
+    padding: 28px 16px 80px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom:10px;
+    margin-bottom:10px;
+  }
+  header h1{
+    font-size:1.5rem;
+    letter-spacing:0.02em;
+    margin:0;
+    font-weight:700;
+  }
+  header .sub{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.7rem;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+  }
+
+  .model-status{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.68rem;
+    color:var(--ink-soft);
+    margin-bottom:22px;
+    letter-spacing:0.03em;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .model-status .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .model-status.ready .dot{background:var(--moss);}
+  .model-status.loading .dot{background:var(--ochre); animation:blink 1s infinite;}
+  .model-status.error .dot{background:var(--record);}
+  @keyframes blink{50%{opacity:0.3;}}
+
+  .recorder{
+    background:var(--paper-dark);
+    border:1px solid var(--line);
+    border-radius:2px;
+    padding:18px;
+    margin-bottom:28px;
+    position:relative;
+  }
+  .recorder::before{
+    content:"ENTRY";
+    position:absolute;
+    top:-9px;
+    left:14px;
+    background:var(--paper);
+    padding:0 8px;
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.65rem;
+    letter-spacing:0.12em;
+    color:var(--ink-soft);
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  button.record-btn{
+    width:58px;height:58px;
+    border-radius:50%;
+    border:2px solid var(--record);
+    background:transparent;
+    cursor:pointer;
+    position:relative;
+    flex-shrink:0;
+    transition:transform 0.15s ease;
+  }
+  button.record-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  button.record-btn:active{transform:scale(0.94);}
+  button.record-btn .dot{
+    position:absolute; inset:0;
+    margin:auto;
+    width:22px;height:22px;
+    background:var(--record);
+    border-radius:50%;
+    transition:all 0.2s ease;
+  }
+  button.record-btn.active .dot{
+    border-radius:4px;
+    width:18px;height:18px;
+    background:var(--record-dark);
+  }
+  button.record-btn.active{
+    animation:pulse 1.4s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(166,61,47,0.35);}
+    70%{box-shadow:0 0 0 12px rgba(166,61,47,0);}
+    100%{box-shadow:0 0 0 0 rgba(166,61,47,0);}
+  }
+
+  .status-block{flex:1; min-width:0;}
+  .status-line{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+  }
+  .timer{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:1.1rem;
+    color:var(--ink);
+  }
+
+  .trace{
+    height:34px;
+    margin-top:12px;
+    display:flex;
+    align-items:center;
+    gap:2px;
+    overflow:hidden;
+  }
+  .trace span{
+    display:block;
+    width:3px;
+    background:var(--moss);
+    border-radius:1px;
+    height:4px;
+    opacity:0.85;
+  }
+
+  h2.section-label{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.7rem;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    margin: 0 0 12px 2px;
+  }
+
+  .note{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-top:3px solid var(--moss);
+    padding:14px 16px;
+    margin-bottom:14px;
+    border-radius:1px;
+  }
+  .note-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:8px;
+    gap:10px;
+  }
+  .note-date{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.68rem;
+    color:var(--ink-soft);
+    letter-spacing:0.04em;
+  }
+  .note-dur{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.68rem;
+    color:var(--ochre);
+  }
+  audio{width:100%; height:32px; margin-bottom:10px; filter: sepia(0.15);}
+  textarea.transcript{
+    width:100%;
+    min-height:60px;
+    resize:vertical;
+    border:none;
+    background:transparent;
+    border-bottom:1px dashed var(--line);
+    font-family:inherit;
+    font-size:0.95rem;
+    color:var(--ink);
+    padding:4px 0;
+  }
+  textarea.transcript:disabled{color:var(--ink-soft); font-style:italic;}
+  textarea.transcript:focus{outline:none; border-bottom-color:var(--moss);}
+  .note-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:14px;
+    margin-top:8px;
+  }
+  .note-actions button{
+    background:none;
+    border:none;
+    cursor:pointer;
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.68rem;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    padding:4px 2px;
+    border-bottom:1px solid transparent;
+  }
+  .note-actions button:hover{color:var(--ink); border-bottom-color:var(--ink);}
+  .note-actions button.danger:hover{color:var(--record); border-bottom-color:var(--record);}
+
+  .empty{
+    text-align:center;
+    color:var(--ink-soft);
+    font-style:italic;
+    padding:30px 10px;
+    border:1px dashed var(--line);
+  }
+
+  .saved-flash{
+    font-family:"IBM Plex Mono",Menlo,Consolas,monospace;
+    font-size:0.65rem;
+    color:var(--moss-dark);
+    letter-spacing:0.08em;
+    opacity:0;
+    transition:opacity 0.4s ease;
+  }
+  .saved-flash.show{opacity:1;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Field Notes</h1>
+    <div class="sub" id="entryCount">0 entries</div>
+  </header>
+  <div class="model-status loading" id="modelStatus">
+    <span class="dot"></span>
+    <span id="modelStatusText">Loading on-device speech model…</span>
+  </div>
+
+  <div class="recorder">
+    <div class="controls">
+      <button class="record-btn" id="recordBtn" aria-label="Start recording" disabled>
+        <span class="dot"></span>
+      </button>
+      <div class="status-block">
+        <div class="status-line" id="statusLine">Waiting for speech model…</div>
+        <div class="timer" id="timer">00:00</div>
+      </div>
+    </div>
+    <div class="trace" id="trace"></div>
+  </div>
+
+  <h2 class="section-label">Entries <span class="saved-flash" id="savedFlash">saved</span></h2>
+  <div id="notesList"></div>
+  <div class="empty" id="emptyMsg">No entries yet. Your first recording will show up here.</div>
+</div>
+
+<script type="module">
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+
+// Keep everything client-side: no local model files bundled with the repo,
+// so use the hosted model cache (downloaded once, then cached by the browser).
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+const STORAGE_KEY = "fieldNotesEntries_v1";
+let mediaRecorder, audioChunks = [], audioStream;
+let startTime, timerInterval;
+let transcriber = null;
+
+const recordBtn = document.getElementById('recordBtn');
+const statusLine = document.getElementById('statusLine');
+const timerEl = document.getElementById('timer');
+const trace = document.getElementById('trace');
+const notesList = document.getElementById('notesList');
+const emptyMsg = document.getElementById('emptyMsg');
+const entryCount = document.getElementById('entryCount');
+const savedFlash = document.getElementById('savedFlash');
+const modelStatus = document.getElementById('modelStatus');
+const modelStatusText = document.getElementById('modelStatusText');
+
+for(let i=0;i<80;i++){ trace.appendChild(document.createElement('span')); }
+const traceBars = trace.querySelectorAll('span');
+
+// ---------- Model loading (one-time download, then cached on-device) ----------
+async function loadModel(){
+  try{
+    transcriber = await pipeline(
+      'automatic-speech-recognition',
+      'Xenova/whisper-tiny.en',
+      { progress_callback: (p) => {
+          if(p.status === 'progress' && p.file){
+            const pct = p.progress ? Math.round(p.progress) : 0;
+            modelStatusText.textContent = `Downloading speech model… ${pct}%`;
+          }
+        }
+      }
+    );
+    modelStatus.className = 'model-status ready';
+    modelStatusText.textContent = 'On-device transcription ready (Whisper, runs fully offline once loaded)';
+    statusLine.textContent = 'Tap to record';
+    recordBtn.disabled = false;
+  }catch(err){
+    modelStatus.className = 'model-status error';
+    modelStatusText.textContent = 'Speech model failed to load — recording will still work, transcription won\'t.';
+    statusLine.textContent = 'Tap to record (no transcription)';
+    recordBtn.disabled = false;
+    console.error(err);
+  }
+}
+loadModel();
+
+// ---------- Storage ----------
+function loadNotes(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); }
+  catch(e){ return []; }
+}
+function saveNotes(notes){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+  savedFlash.classList.add('show');
+  setTimeout(()=>savedFlash.classList.remove('show'), 900);
+}
+
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) +
+    "  " + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+}
+function fmtDuration(sec){
+  const m = Math.floor(sec/60).toString().padStart(2,'0');
+  const s = Math.floor(sec%60).toString().padStart(2,'0');
+  return m+":"+s;
+}
+
+function renderNotes(){
+  const notes = loadNotes();
+  entryCount.textContent = notes.length + (notes.length===1 ? " entry" : " entries");
+  notesList.innerHTML = "";
+  if(notes.length === 0){ emptyMsg.style.display = "block"; return; }
+  emptyMsg.style.display = "none";
+
+  notes.slice().reverse().forEach(note => {
+    const div = document.createElement('div');
+    div.className = "note";
+    const pending = note.transcriptStatus === 'pending';
+    div.innerHTML = `
+      <div class="note-head">
+        <span class="note-date">${fmtDate(note.timestamp)}</span>
+        <span class="note-dur">${fmtDuration(note.duration)}</span>
+      </div>
+      <audio controls src="${note.audio}"></audio>
+      <textarea class="transcript" data-id="${note.id}" ${pending ? 'disabled' : ''}
+        placeholder="Transcript...">${pending ? 'Transcribing on-device…' : (note.transcript || "")}</textarea>
+      <div class="note-actions">
+        <button class="save-transcript" data-id="${note.id}">Save edit</button>
+        <button class="danger delete-note" data-id="${note.id}">Delete</button>
+      </div>
+    `;
+    notesList.appendChild(div);
+  });
+
+  notesList.querySelectorAll('.save-transcript').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const ta = notesList.querySelector(`textarea[data-id="${id}"]`);
+      const notes = loadNotes();
+      const idx = notes.findIndex(n=>n.id===id);
+      if(idx>-1){ notes[idx].transcript = ta.value; saveNotes(notes); }
+    });
+  });
+  notesList.querySelectorAll('.delete-note').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm("Delete this entry? This can't be undone.")) return;
+      let notes = loadNotes();
+      notes = notes.filter(n=>n.id!==btn.dataset.id);
+      saveNotes(notes);
+      renderNotes();
+    });
+  });
+}
+
+function startTimer(){
+  startTime = Date.now();
+  timerInterval = setInterval(()=>{
+    timerEl.textContent = fmtDuration((Date.now()-startTime)/1000);
+  }, 250);
+}
+function stopTimer(){ clearInterval(timerInterval); }
+
+function animateTrace(analyser, dataArray){
+  if(!recordBtn.classList.contains('active')) return;
+  analyser.getByteFrequencyData(dataArray);
+  let sum=0;
+  for(let i=0;i<dataArray.length;i++) sum+=dataArray[i];
+  const avg = sum/dataArray.length;
+  for(let i=0;i<traceBars.length-1;i++){
+    traceBars[i].style.height = traceBars[i+1].style.height || "4px";
+  }
+  const h = Math.max(4, Math.min(32, avg/2));
+  traceBars[traceBars.length-1].style.height = h+"px";
+  requestAnimationFrame(()=>animateTrace(analyser,dataArray));
+}
+
+// ---------- Recording ----------
+async function startRecording(){
+  try{
+    audioStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    statusLine.textContent = "Microphone access denied or unavailable.";
+    return;
+  }
+
+  const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const source = audioCtx.createMediaStreamSource(audioStream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 64;
+  source.connect(analyser);
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(audioStream);
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+  mediaRecorder.onstop = onRecordingStop;
+  mediaRecorder.start();
+
+  recordBtn.classList.add('active');
+  statusLine.textContent = "Recording...";
+  startTimer();
+  animateTrace(analyser, dataArray);
+}
+
+async function blobToFloat32Mono16k(blob){
+  const arrayBuffer = await blob.arrayBuffer();
+  const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+  const targetRate = 16000;
+  const offlineCtx = new OfflineAudioContext(1, Math.ceil(decoded.duration*targetRate), targetRate);
+  const src = offlineCtx.createBufferSource();
+  src.buffer = decoded;
+  src.connect(offlineCtx.destination);
+  src.start(0);
+  const rendered = await offlineCtx.startRendering();
+  return rendered.getChannelData(0);
+}
+
+async function onRecordingStop(){
+  const blob = new Blob(audioChunks, {type:'audio/webm'});
+  const duration = (Date.now()-startTime)/1000;
+  const noteId = 'n_'+Date.now();
+
+  const reader = new FileReader();
+  reader.onloadend = async ()=>{
+    const base64Audio = reader.result;
+    const notes = loadNotes();
+    notes.push({
+      id: noteId,
+      timestamp: Date.now(),
+      duration: duration,
+      audio: base64Audio,
+      transcript: "",
+      transcriptStatus: transcriber ? 'pending' : 'unavailable'
+    });
+    saveNotes(notes);
+    renderNotes();
+
+    if(transcriber){
+      try{
+        const floatData = await blobToFloat32Mono16k(blob);
+        const result = await transcriber(floatData, { chunk_length_s: 30, stride_length_s: 5 });
+        const notes2 = loadNotes();
+        const idx = notes2.findIndex(n=>n.id===noteId);
+        if(idx>-1){
+          notes2[idx].transcript = (result.text || "").trim();
+          notes2[idx].transcriptStatus = 'done';
+          saveNotes(notes2);
+          renderNotes();
+        }
+      }catch(err){
+        console.error('Transcription failed', err);
+        const notes2 = loadNotes();
+        const idx = notes2.findIndex(n=>n.id===noteId);
+        if(idx>-1){
+          notes2[idx].transcript = "";
+          notes2[idx].transcriptStatus = 'done';
+          saveNotes(notes2);
+          renderNotes();
+        }
+      }
+    }
+  };
+  reader.readAsDataURL(blob);
+
+  if(audioStream){ audioStream.getTracks().forEach(t=>t.stop()); }
+}
+
+function stopRecording(){
+  recordBtn.classList.remove('active');
+  statusLine.textContent = "Tap to record";
+  timerEl.textContent = "00:00";
+  stopTimer();
+  if(mediaRecorder && mediaRecorder.state !== 'inactive'){ mediaRecorder.stop(); }
+  traceBars.forEach(b=>b.style.height="4px");
+}
+
+recordBtn.addEventListener('click', ()=>{
+  if(recordBtn.classList.contains('active')){ stopRecording(); }
+  else{ startRecording(); }
+});
+
+renderNotes();
+</script>
+</body>
+</html>
